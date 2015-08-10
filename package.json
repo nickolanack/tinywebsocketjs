@@ -2,7 +2,7 @@
   "name": "tinywebsocketjs",
   "version": "0.0.0",
   "description": "a super minimal websocket server for responding to tasks, and broadcasting messages",
-  "main": "server.js",
+  "main": "websocketserver.js",
   "scripts": {
     "test": "node test/test.js"
   },
