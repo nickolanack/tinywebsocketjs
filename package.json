@@ -19,5 +19,6 @@
     "url": "https://github.com/nickolanack/tinywebsocketjs/issues"
   },
   "dependencies":{
+  	"ws":"latest"
   }
 }
