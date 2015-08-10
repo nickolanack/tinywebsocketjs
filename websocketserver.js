@@ -52,7 +52,7 @@ function WebsocketServer(options){
 					}, function(response){
 					
 						
-					var text=me._prepareResponse(message);				
+					var text=me._prepareResponse(response);				
 					client.send(id+':'+text);
 					
 				});
