@@ -24,6 +24,8 @@ function WebsocketServer(options){
 
 	me.server=(new (require('ws').Server)({
 		port: config.port
+	},function(){
+		me.emit('open');
 	})).on('connection', function(client){
 
 		me.clients.push(client);
