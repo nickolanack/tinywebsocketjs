@@ -105,7 +105,7 @@ WebsocketServer.prototype.broadcast=function(name, message, filterClient){
 				console.log('broadcast client');
 				client.send(name+':'+text);
 			}else{
-				console.log('skip client');
+				//console.log('skip client');
 			}
 		}else{
 			client.send(name+':'+text);	
