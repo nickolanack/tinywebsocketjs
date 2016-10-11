@@ -4,79 +4,88 @@
 var events = require('events');
 
 
-function WebsocketServer(options){
+function WebsocketServer(options) {
 
-	var me=this;
+	var me = this;
 	// Simple websocket server
 	events.EventEmitter.call(me);
 	me.clients = [];
-	
-	me._handlers={};
 
-
-	var config={
-			port:8080
+	me.closeClient = function(client) {
+		var i = me.clients.indexOf(client);
+		if (i >= 0) {
+			console.log('ws:' + i + ' client closed');
+			me.clients.splice(i, 1);
+		}
 	};
 
-	Object.keys(options).forEach(function (key) {
-		config[key]=options[key];
+	me._handlers = {};
+
+
+	var config = {
+		port: 8080
+	};
+
+	Object.keys(options).forEach(function(key) {
+		config[key] = options[key];
 	});
 
-	me.server=(new (require('ws').Server)({
+	me.server = (new(require('ws').Server)({
 		port: config.port
-	},function(){
+	}, function() {
 		me.emit('open');
-	})).on('connection', function(client){
+	})).on('connection', function(client) {
 
 		me.clients.push(client);
-		console.log('client connected: '+client);
+		console.log('client connected: ' + client);
 
-		client.on('message',function(data){
-
-
+		client.on('message', function(data) {
 
 
-			var request=JSON.parse(data);
+
+			var request = JSON.parse(data);
 			//console.log([data, request]);
-			var id=request.id;
-			var task=request.task;
-			var arguments=request.json;
-			arguments.request_id=id;
-			arguments.client=client;
-			
-			
-			if((typeof me._handlers[task])=='function'){
-				
+			var id = request.id;
+			var task = request.task;
+			var arguments = request.json;
+			arguments.request_id = id;
+			arguments.client = client;
+
+
+			if ((typeof me._handlers[task]) == 'function') {
+
 				me._handlers[task]({
-						args:arguments,
-						client:client,
-						id:id
-					}, function(response){
-					
-						
-					var text=me._prepareResponse(response);				
-					client.send(id+':'+text);
-					
+					args: arguments,
+					client: client,
+					id: id
+				}, function(response) {
+
+
+					var text = me._prepareResponse(response);
+					client.send(id + ':' + text);
+
 				});
-				
+
 			}
 
 
-		
-		}).on('close',function(code, message){
+
+		}).on('close', function(code, message) {
 			var i = me.clients.indexOf(client);
-			console.log('ws:'+i+' client closed: '+code+' '+message);
-			me.clients.splice(i, 1);
+			if (i >= 0) {
+				console.log('ws:' + i + ' client closed: ' + code + ' ' + message);
+				me.clients.splice(i, 1);
+			}
 		});
-		
 
-		
 
-	}).on('error', function(error){
 
-		console.log('error: '+error);
+	}).on('error', function(error) {
+
+		console.log('error: ' + error);
 
 	});
+
 
 
 	//gpio.on('change', function(pin, value) {
@@ -85,59 +94,67 @@ function WebsocketServer(options){
 	//});
 
 
-	console.log('websocket listening on: '+config.port);
+	console.log('websocket listening on: ' + config.port);
 
 }
 
 
 WebsocketServer.prototype.__proto__ = events.EventEmitter.prototype;
-WebsocketServer.prototype.stop=function(){
-	var me=this;
+WebsocketServer.prototype.stop = function() {
+	var me = this;
 	console.log('websocker server stopped');
 	me.server.close();
 }
 
-WebsocketServer.prototype.broadcast=function(name, message, filterClient){
-	var me=this;
-	var text=me._prepareResponse(message);
-	me.clients.forEach(function(client){
-		
-		if((typeof filterClient)=='function'){
-			if(filterClient(client)){
+WebsocketServer.prototype.broadcast = function(name, message, filterClient) {
+	var me = this;
+	var text = me._prepareResponse(message);
+	me.clients.forEach(function(client) {
+
+		if ((typeof filterClient) == 'function') {
+			if (filterClient(client)) {
 				console.log('broadcast client');
-				client.send(name+':'+text);
-			}else{
+				client.send(name + ':' + text, function(err) {
+					if (err) {
+						me.closeClient(client);
+					}
+				});
+			} else {
 				//console.log('skip client');
 			}
-		}else{
-			client.send(name+':'+text);	
+		} else {
+			client.send(name + ':' + text, function(err) {
+				if (err) {
+					me.closeClient(client);
+				}
+			});
 		}
-			
+
 	});
 }
 
-WebsocketServer.prototype.addTask=function(name, callback){
-	var me=this;
-	if(!me._handlers){
-		me._handlers={};
+WebsocketServer.prototype.addTask = function(name, callback) {
+	var me = this;
+	if (!me._handlers) {
+		me._handlers = {};
 	}
-	me._handlers[name]=callback;
+	me._handlers[name] = callback;
 	return me;
 }
 
 
-WebsocketServer.prototype._prepareResponse=function(response){
-	if((typeof response)=='object'){
+WebsocketServer.prototype._prepareResponse = function(response) {
+	if ((typeof response) == 'object') {
 		return JSON.stringify(response);
 	}
-	
-	if((['string', 'number']).indexOf(typeof response)>=0){
-		return  response;
+
+	if ((['string', 'number']).indexOf(typeof response) >= 0) {
+		return response;
 	}
-	
-	throw new Error('Unknown response type '+(typeof response));
-	
+
+	throw new Error('Unknown response type ' + (typeof response));
+
 }
 
 
-module.exports=WebsocketServer;
+module.exports = WebsocketServer;
