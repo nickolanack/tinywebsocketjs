@@ -127,7 +127,7 @@ WebsocketServer.prototype.broadcast = function(name, message, filterClient) {
 
 		if ((typeof filterClient) == 'function') {
 			if (filterClient(client, me.clientIds[i])) {
-				console.log('broadcast client');
+				console.log('broadcast client('+me.clientIds[i]+') client with filter');
 				client.send(name + ':' + text, function(err) {
 					if (err) {
 						me.closeClient(client);
@@ -137,6 +137,8 @@ WebsocketServer.prototype.broadcast = function(name, message, filterClient) {
 				//console.log('skip client');
 			}
 		} else {
+
+			console.log('broadcast client('+me.clientIds[i]+') no filter');
 			client.send(name + ':' + text, function(err) {
 				if (err) {
 					me.closeClient(client);
