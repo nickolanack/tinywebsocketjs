@@ -10,7 +10,7 @@ function WebsocketServer(options) {
 	// Simple websocket server
 	events.EventEmitter.call(me);
 	me.clients = [];
-
+	var counter=0;
 	me.closeClient = function(client) {
 		var i = me.clients.indexOf(client);
 		if (i >= 0) {
@@ -36,6 +36,8 @@ function WebsocketServer(options) {
 		me.emit('open');
 	})).on('connection', function(client) {
 
+		var clientId=counter;
+		counter++;
 		me.clients.push(client);
 		console.log('client connected: ' + client);
 
@@ -50,6 +52,7 @@ function WebsocketServer(options) {
 			var arguments = request.json;
 			arguments.request_id = id;
 			arguments.client = client;
+			arguments.client_id=clientId;
 
 
 			if ((typeof me._handlers[task]) == 'function') {
@@ -57,7 +60,8 @@ function WebsocketServer(options) {
 				me._handlers[task]({
 					args: arguments,
 					client: client,
-					id: id
+					id: id,
+					cid:clientId
 				}, function(response) {
 
 
@@ -156,5 +160,118 @@ WebsocketServer.prototype._prepareResponse = function(response) {
 
 }
 
+
+
+WebsocketServer.Client = function(options, callback) {
+
+
+	var me = this;
+
+	me._handlers = [];
+	me._timers = [];
+
+	me._counter = 0;
+
+	me._connect(options.url, callback);
+
+}
+WebsocketServer.Client.prototype.__proto__ = events.EventEmitter.prototype;
+WebsocketServer.Client.prototype._connect= function(url, callback) {
+
+	var me = this;
+
+	try {
+
+
+		var WebSocket = require('ws');
+		me._ws = new WebSocket(url);
+
+		me._ws.on('open', function() {
+			callback(me);
+			me.emit('open');
+		});
+
+
+
+		console.log('started websocket: ws');
+
+
+
+		me._ws.on('error', function() {
+			console.log('recieved error! ');
+		});
+
+		me._ws.on('message', function (message) {
+			me._handleMessage(message);
+		});
+
+		me._ws.on('close', function(message) {
+			me.emit('close');
+			me._connect(url, function(ws) {
+				me._ws = ws;
+				me.emit('reconnect');
+			});
+		});
+
+	} catch (e) {
+		console.log('error connecting to websocket');
+	}
+
+
+};
+WebsocketServer.Client.prototype.send = function(task, json, callback) {
+	var me = this;
+	var id = me._counter;
+	me._counter++;
+
+	if(callback){
+		me._handlers['_' + id] = callback;
+	}
+	
+	me._ws.send(JSON.stringify({
+		id: id,
+		task: task,
+		json: json
+	}));
+	me._timerStart(id);
+};
+WebsocketServer.Client.prototype._timerStart = function(id) {
+	var me = this;
+	//not supported by safari.
+	
+	me._timers['_' + id] = new Date().getTime();
+	
+};
+WebsocketServer.Client.prototype._timerStop = function(c) {
+	var me = this;
+	var time = -1;
+	
+
+	time = new Date().getTime() - me._timers['_' + c];
+	delete me._timers['_' + c];
+	
+	return time;
+};
+WebsocketServer.Client.prototype._handleMessage = function(message) {
+	var me = this;
+
+	var data = message;
+	var i = data.indexOf(':');
+	var id = data.substring(0, i);
+	data = data.substring(i + 1);
+
+
+	if (!me._handlers['_' + id]) {
+		me.emit(id, data);
+		console.log("unhandled message: "+'_' + id+"=>"+data)
+
+	} else {
+		var time = me._timerStop(id);
+		me._handlers['_' + id](data);
+		console.log('ws ' + id + ':' + time);
+
+		delete me._handlers['_' + id];
+	}
+};
 
 module.exports = WebsocketServer;
