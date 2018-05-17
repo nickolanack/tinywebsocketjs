@@ -10,12 +10,19 @@ function WebsocketServer(options) {
 	// Simple websocket server
 	events.EventEmitter.call(me);
 	me.clients = [];
+	me.clientIds=[];
 	var counter=0;
 	me.closeClient = function(client) {
 		var i = me.clients.indexOf(client);
 		if (i >= 0) {
 			console.log('ws:' + i + ' client closed');
+
+			me.emit('client.'+me.clientIds[i]+'.Close', client);
+			me.emit('clientClose', client, me.clientIds[i]);
+
 			me.clients.splice(i, 1);
+			me.clientIds.splice(i, 1);
+			
 		}
 	};
 
@@ -38,7 +45,10 @@ function WebsocketServer(options) {
 
 		var clientId=counter;
 		counter++;
+
 		me.clients.push(client);
+		me.clientIds.push(clientId);
+
 		console.log('client connected: ' + client);
 
 		client.on('message', function(data) {
@@ -78,7 +88,7 @@ function WebsocketServer(options) {
 			var i = me.clients.indexOf(client);
 			if (i >= 0) {
 				console.log('ws:' + i + ' client closed: ' + code + ' ' + message);
-				me.clients.splice(i, 1);
+				me.closeClient(client);
 			}
 		});
 
@@ -113,10 +123,10 @@ WebsocketServer.prototype.stop = function() {
 WebsocketServer.prototype.broadcast = function(name, message, filterClient) {
 	var me = this;
 	var text = me._prepareResponse(message);
-	me.clients.forEach(function(client) {
+	me.clients.forEach(function(client, i) {
 
 		if ((typeof filterClient) == 'function') {
-			if (filterClient(client)) {
+			if (filterClient(client, me.clientIds[i])) {
 				console.log('broadcast client');
 				client.send(name + ':' + text, function(err) {
 					if (err) {
