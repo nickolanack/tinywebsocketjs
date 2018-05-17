@@ -197,7 +197,9 @@ WebsocketServer.Client.prototype._connect= function(url, callback) {
 		me._ws = new WebSocket(url);
 
 		me._ws.on('open', function() {
-			callback(me);
+			if(callback){
+				callback(me);
+			}
 			me.emit('open');
 		});
 
@@ -217,10 +219,13 @@ WebsocketServer.Client.prototype._connect= function(url, callback) {
 
 		me._ws.on('close', function(message) {
 			me.emit('close');
-			me._connect(url, function(ws) {
-				me._ws = ws;
-				me.emit('reconnect');
-			});
+			setTimeout(function(){
+					me._connect(url, function() {
+					//me._ws = ws;
+					me.emit('reconnect');
+				});
+			}, 5000);
+			
 		});
 
 	} catch (e) {
